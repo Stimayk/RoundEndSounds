@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoundEndSounds Config Generator</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #4CAF50;
+            --danger-color: #f44336;
+            --panel-bg: #2d2d2d;
+            --input-bg: #3d3d3d;
+            --border-color: #444;
+            --disabled-bg: #2a2a2a; /* Цвет для заблокированных полей */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1, h2 { text-align: center; }
+
+        /* Drop Zone */
+        #drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background-color: var(--panel-bg);
+            transition: border-color 0.3s, background-color 0.3s;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        #drop-zone.dragover {
+            border-color: var(--accent-color);
+            background-color: #353535;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background-color: var(--accent-color); }
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-secondary { background-color: #555; }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            background-color: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label { margin-bottom: 5px; font-size: 0.9em; color: #aaa; }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 8px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: white;
+            border-radius: 4px;
+        }
+
+        /* Стиль для заблокированных инпутов */
+        input:disabled {
+            background-color: var(--disabled-bg);
+            color: #666;
+            cursor: not-allowed;
+            border-color: #333;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            font-family: monospace;
+            min-height: 60px;
+        }
+
+        /* Sounds List */
+        .sound-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sound-item {
+            display: grid;
+            grid-template-columns: 2fr 2fr 2fr 50px;
+            gap: 10px;
+            background-color: var(--panel-bg);
+            padding: 15px;
+            border-radius: 5px;
+            align-items: center;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .sound-item input {
+            width: 100%;
+            padding: 8px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .header-row {
+            display: grid;
+            grid-template-columns: 2fr 2fr 2fr 50px;
+            gap: 10px;
+            padding: 0 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #aaa;
+        }
+
+        .hidden-input { display: none; }
+
+        @media (max-width: 768px) {
+            .sound-item {
+                grid-template-columns: 1fr;
+                border-left: none;
+                border-top: 4px solid var(--accent-color);
+            }
+            .header-row { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>RES Config Generator</h1>
+
+    <div class="toolbar">
+        <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">📂 Загрузить существующий Config</button>
+        <button class="btn btn-primary" onclick="downloadConfig()">💾 Скачать Config</button>
+        <input type="file" id="file-input" class="hidden-input" accept=".json" onchange="loadConfig(this)">
+    </div>
+
+    <!-- Drop Zone -->
+    <div id="drop-zone">
+        <h3>Перетащите файлы .vsnd_c сюда</h3>
+        <p style="color: #888">Они автоматически добавятся в список ниже</p>
+    </div>
+
+    <!-- Global Settings -->
+    <details open>
+        <summary style="cursor: pointer; margin-bottom: 10px;">⚙️ Основные настройки</summary>
+        <div class="settings-panel" id="global-settings">
+            <div class="form-group"><label>Хост бд</label><input type="text" id="conf-db-host"></div>
+            <div class="form-group"><label>Порт бд</label><input type="number" id="conf-db-port"></div>
+            <div class="form-group"><label>Пользователь бд</label><input type="text" id="conf-db-user"></div>
+            <div class="form-group"><label>Пароль бд</label><input type="text" id="conf-db-pass"></div>
+            <div class="form-group"><label>Имя бд</label><input type="text" id="conf-db-name"></div>
+            <div class="form-group">
+                <label>Стандартная громкость (0.0 - 0.9)</label>
+                <input type="number" step="0.1" min="0.0" max="0.9" id="conf-vol">
+            </div>
+            <div class="form-group">
+                <label>Тип сообщений (1-3)</label>
+                <input type="number" min="1" max="3" id="conf-msg-type" oninput="toggleImageInputs()">
+            </div>
+            <div class="form-group"><label>Рандомизировать</label>
+                <select id="conf-random">
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label>Список файлов SoundEvents (каждый файл с новой строки)</label>
+                <textarea id="conf-sound-events" placeholder="soundevents_roundendsound.vsndevts"></textarea>
+            </div>
+        </div>
+    </details>
+
+    <hr style="border-color: #333; margin: 20px 0;">
+
+    <h2>Список звуков</h2>
+    <div class="header-row">
+        <div>Название в игре</div>
+        <div>Путь к файлу</div>
+        <div>Ссылка на картинку (Только для типа 2)</div>
+        <div></div>
+    </div>
+    <div id="sound-list-container" class="sound-list">
+        <!-- Sound items will appear here -->
+    </div>
+</div>
+
+<script>
+    let currentConfig = {
+        DatabaseHost: "",
+        DatabasePort: 3306,
+        DatabaseUser: "",
+        DatabasePassword: "",
+        DatabaseName: "",
+        DefaultVolume: 0.3,
+        Randomize: true,
+        MessageType: 1,
+        SoundEventFiles: ["soundevents_roundendsound.vsndevts (это пример)"],
+        Sounds: {}
+    };
+
+    let soundArray = [];
+
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        syncSettingsToUI();
+        setupDragAndDrop();
+        toggleImageInputs();
+    });
+
+    function toggleImageInputs() {
+        const msgTypeInput = document.getElementById('conf-msg-type');
+        let msgType = parseInt(msgTypeInput.value);
+        if (isNaN(msgType)) msgType = 1;
+
+        const imgInputs = document.querySelectorAll('.img-url-input');
+        
+        imgInputs.forEach(input => {
+            if (msgType === 2) {
+                input.disabled = false;
+                input.placeholder = "URL Картинки";
+                input.title = "";
+            } else {
+                input.disabled = true;
+                input.placeholder = "Доступно только при Тип сообщений = 2";
+                input.title = "Измените 'Тип сообщений' на 2, чтобы редактировать";
+            }
+        });
+    }
+
+    // --- Drag and Drop Logic ---
+    function setupDragAndDrop() {
+        const dropZone = document.getElementById('drop-zone');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+    }
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+
+    function handleFiles(files) {
+        let addedCount = 0;
+        ([...files]).forEach(file => {
+            if (file.name === 'RoundEndSounds.json' || file.type === 'application/json') {
+                const reader = new FileReader();
+                reader.onload = (e) => processLoadedConfig(e.target.result);
+                reader.readAsText(file);
+                return;
+            }
+
+            let cleanName = file.name;
+            const lastDotIndex = cleanName.lastIndexOf('.');
+            
+            if (lastDotIndex > 0) {
+                cleanName = cleanName.substring(0, lastDotIndex);
+            }
+            
+            soundArray.push({
+                name: cleanName,
+                soundPath: cleanName, 
+                soundPic: ""
+            });
+            addedCount++;
+        });
+
+        if (addedCount > 0) renderSoundList();
+    }
+
+    // --- Config Loading ---
+    function loadConfig(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => processLoadedConfig(e.target.result);
+        reader.readAsText(file);
+        input.value = '';
+    }
+
+    function processLoadedConfig(jsonString) {
+        try {
+            const data = JSON.parse(jsonString);
+            currentConfig = { ...currentConfig, ...data };
+            
+            soundArray = [];
+            if (data.Sounds) {
+                for (const [key, value] of Object.entries(data.Sounds)) {
+                    soundArray.push({
+                        name: key,
+                        soundPath: value.Sound,
+                        soundPic: value.SoundPic || ""
+                    });
+                }
+            }
+            
+            syncSettingsToUI();
+            renderSoundList();
+            alert("Конфиг успешно загружен!");
+        } catch (e) {
+            alert("Ошибка чтения JSON: " + e.message);
+        }
+    }
+
+    // --- UI Rendering ---
+    function syncSettingsToUI() {
+        document.getElementById('conf-db-host').value = currentConfig.DatabaseHost || "";
+        document.getElementById('conf-db-port').value = currentConfig.DatabasePort || 3306;
+        document.getElementById('conf-db-user').value = currentConfig.DatabaseUser || "";
+        document.getElementById('conf-db-pass').value = currentConfig.DatabasePassword || "";
+        document.getElementById('conf-db-name').value = currentConfig.DatabaseName || "";
+        document.getElementById('conf-vol').value = currentConfig.DefaultVolume;
+        document.getElementById('conf-msg-type').value = currentConfig.MessageType;
+        document.getElementById('conf-random').value = currentConfig.Randomize.toString();
+        
+        const soundEvents = currentConfig.SoundEventFiles || ["soundevents_roundendsound.vsndevts"];
+        document.getElementById('conf-sound-events').value = soundEvents.join('\n');
+        
+        toggleImageInputs();
+    }
+
+    function syncUItoSettings() {
+        currentConfig.DatabaseHost = document.getElementById('conf-db-host').value;
+        currentConfig.DatabasePort = parseInt(document.getElementById('conf-db-port').value);
+        currentConfig.DatabaseUser = document.getElementById('conf-db-user').value;
+        currentConfig.DatabasePassword = document.getElementById('conf-db-pass').value;
+        currentConfig.DatabaseName = document.getElementById('conf-db-name').value;
+        
+        let vol = parseFloat(document.getElementById('conf-vol').value);
+        if (isNaN(vol) || vol < 0.0) vol = 0.0;
+        if (vol > 0.9) vol = 0.9;
+        currentConfig.DefaultVolume = vol;
+        
+        let msgType = parseInt(document.getElementById('conf-msg-type').value);
+        if (isNaN(msgType) || msgType < 1) msgType = 1;
+        if (msgType > 3) msgType = 3;
+        currentConfig.MessageType = msgType;
+
+        currentConfig.Randomize = document.getElementById('conf-random').value === 'true';
+
+        const rawSoundEvents = document.getElementById('conf-sound-events').value;
+        currentConfig.SoundEventFiles = rawSoundEvents
+            .split('\n')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+        
+        if (currentConfig.SoundEventFiles.length === 0) {
+            currentConfig.SoundEventFiles = ["soundevents_roundendsound.vsndevts"];
+        }
+    }
+
+    function renderSoundList() {
+        const container = document.getElementById('sound-list-container');
+        container.innerHTML = '';
+
+        soundArray.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'sound-item';
+            
+            div.innerHTML = `
+                <div>
+                    <input type="text" placeholder="Название в игре" value="${item.name}" oninput="updateSound(${index}, 'name', this.value)">
+                </div>
+                <div>
+                    <input type="text" placeholder="Путь файла" value="${item.soundPath}" oninput="updateSound(${index}, 'soundPath', this.value)">
+                </div>
+                <div>
+                    <input type="text" class="img-url-input" placeholder="URL Картинки" value="${item.soundPic}" oninput="updateSound(${index}, 'soundPic', this.value)">
+                </div>
+                <div style="text-align: right;">
+                    <button class="btn btn-danger" onclick="removeSound(${index})" title="Удалить">✕</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+
+        toggleImageInputs();
+    }
+
+    // --- Data Manipulation ---
+    window.updateSound = function(index, field, value) {
+        soundArray[index][field] = value;
+    };
+
+    window.removeSound = function(index) {
+        soundArray.splice(index, 1);
+        renderSoundList();
+    };
+
+    // --- Export ---
+    window.downloadConfig = function() {
+        syncUItoSettings();
+        
+        document.getElementById('conf-vol').value = currentConfig.DefaultVolume;
+        document.getElementById('conf-msg-type').value = currentConfig.MessageType;
+        document.getElementById('conf-sound-events').value = currentConfig.SoundEventFiles.join('\n');
+
+        const soundsObj = {};
+        
+        const includeImages = currentConfig.MessageType === 2;
+
+        soundArray.forEach(item => {
+            const key = item.name.trim() || item.soundPath;
+            if (key) {
+                let soundData = {
+                    Sound: item.soundPath
+                };
+
+                if (includeImages) {
+                    soundData.SoundPic = item.soundPic;
+                } else {
+                    soundData.SoundPic = "";
+                }
+
+                soundsObj[key] = soundData;
+            }
+        });
+
+        currentConfig.Sounds = soundsObj;
+
+        const jsonStr = JSON.stringify(currentConfig, null, 4);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "RoundEndSounds.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+</script>
+
+</body>
+</html>
